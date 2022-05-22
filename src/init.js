@@ -56,7 +56,8 @@ class GanttCanvas{
     }
 
     setOption(option){
-        this.option = option
+        this.mergeOption(option)
+        // this.option = option
         this.handleStartEndTime()
         this.computedLength()
         this.handTiltle()
@@ -113,15 +114,15 @@ class GanttCanvas{
     handleStartEndTime(){
         let start = '',end = '',maxDays = 0
         for(let i of this.option.data){
-            if(!is_valid_date(i.start_time)){
-                throw new Error('请检查开始时间的日期格式')
-            }
-            if(!is_valid_date(i.end_time)){
-                throw new Error('请检查结束时间的日期格式')
-            }
-            if(i.start_time>i.end_time){
-                throw new Error('某项数据的开始日期大于结束日期，请检查！')
-            }
+            // if(!is_valid_date(i.start_time)){
+            //     throw new Error('请检查开始时间的日期格式')
+            // }
+            // if(!is_valid_date(i.end_time)){
+            //     throw new Error('请检查结束时间的日期格式')
+            // }
+            // if(i.start_time>i.end_time){
+            //     throw new Error('某项数据的开始日期大于结束日期，请检查！')
+            // }
             if(start===''){
                 start = i.start_time
             }else{
@@ -185,7 +186,7 @@ class GanttCanvas{
         ctx.beginPath();
         ctx.lineWidth = opts.lineWidth || 1
         ctx.strokeStyle = opts.lineColor || 'black'
-        ctx.fillStyle = opts.backgroundColor || 'blue'
+        ctx.fillStyle = opts.backgroundColor || '#00ee00'
         // ctx.moveTo(opts.x,opts.y)
         // ctx.lineTo(opts.x+opts.width,opts.y)
         // ctx.lineTo(opts.x+opts.width,opts.y+opts.height)
@@ -197,7 +198,7 @@ class GanttCanvas{
         ctx.closePath();
         if(opts.textStyle){
             ctx.fillStyle=opts.textStyle.color || 'black'
-            const {textWidth,textHeight} = getTextWidth(opts)
+            const {textWidth,textHeight} = getTextWidthHeight(opts)
             let textX = opts.x + opts.width/2 - textWidth/2,textY = opts.y + opts.height/2 + textHeight/2
             if(opts.textStyle.position==='left'){
                 textX = opts.x
@@ -257,7 +258,7 @@ class GanttCanvas{
         ctx.closePath();
         if(opts.textStyle){
             ctx.fillStyle = 'black'
-            const {textWidth,textHeight} = getTextWidth(opts)
+            const {textWidth,textHeight} = getTextWidthHeight(opts)
             let textX = opts.x + opts.width/2 - textWidth/2,textY = opts.y + opts.height/2 + textHeight/2-2
             // console.log(textX)
             // console.log(textY)
@@ -278,7 +279,7 @@ class GanttCanvas{
     }
 
     showTooltips(){
-        if(!this.option.tooltips.enable){
+        if(!this.option.tooltips){
             return
         }
         this.tooltipsCanvas.canvas = document.createElement("canvas");  
@@ -314,9 +315,20 @@ class GanttCanvas{
     drawToolTips(opts){
         const {ctx} = this.tooltipsCanvas
         // ctx.restore();
-        const {textWidth,textHeight} = getTextWidth(opts.data)
-        this.tooltipsCanvas.canvas.width = textWidth
-        this.tooltipsCanvas.canvas.height = textHeight+5
+        // const {textWidth,textHeight} = getTextWidthHeight(opts.data)
+        let dateTextArr = [],fontSize = '',fontFamily = '',font = ''
+        font = opts.data.tooltipStyle.fontSize
+        fontSize = opts.data.tooltipStyle.fontSize
+        font += ' ' + opts.data.tooltipStyle.fontFamily 
+        fontFamily = opts.data.tooltipStyle.fontFamily
+        dateTextArr = opts.data.tooltipText.split('/n')
+        // if(opts.data.tooltipText){
+        // }else{
+        //     dateTextArr.push(opts.data.textStyle.text)
+        //     dateTextArr.push(opts.data.start_time + '到' + opts.data.end_time)
+        // }
+        this.tooltipsCanvas.canvas.width = Math.max(getToolTipsWidth(dateTextArr[0],{fontSize,fontFamily}),getToolTipsWidth(dateTextArr[1],{fontSize,fontFamily}))+10
+        this.tooltipsCanvas.canvas.height = (parseInt(fontSize) + 7)*dateTextArr.length
         ctx.save()
         this.tooltipsCanvas.ctx.clearRect(0, 0, this.tooltipsCanvas.canvas.width, this.tooltipsCanvas.canvas.height)
         ctx.lineWidth = 2;  
@@ -324,28 +336,82 @@ class GanttCanvas{
         // ctx.fillStyle="RGBA(255,255,255,0.7)";  
         // // m_context.strokeRect(2, 2, this.tooltipsCanvas.canvas.width-4, this.tooltipsCanvas.canvas.height-4);  
         // // m_context.fillRect(2,2,this.tooltipsCanvas.canvas.width-4, this.tooltipsCanvas.canvas.height-4);  
-        // ctx.roundRect(2,2,this.tooltipsCanvas.canvas.width-4, this.tooltipsCanvas.canvas.height-4, 5, true, true);  
-        ctx.font="14px Arial";  
-        ctx.fillStyle="RGBA(0,0,0,1)";  
-        ctx.fillText(opts.data.textStyle.text , 0, textHeight);  
+        // ctx.roundRect(2,2,this.tooltipsCanvas.canvas.width-4, this.tooltipsCanvas.canvas.height-4, 5, true, true); 
+        //设置边框背景颜色
+        ctx.fillStyle = opts.data.tooltipStyle.backgroundColor
+        ctx.strokeRect(0,0,this.tooltipsCanvas.canvas.width,this.tooltipsCanvas.canvas.height)
+        ctx.fillRect(0,0,this.tooltipsCanvas.canvas.width,this.tooltipsCanvas.canvas.height)
+        ctx.font=font
+        //设置字体颜色
+        ctx.fillStyle = opts.data.tooltipStyle.color
+        dateTextArr.forEach((item,index)=>{
+            ctx.fillText(item , 5, (index+1)*(parseInt(fontSize) + 4));  
+        })
+        // ctx.fillText(opts.data.textStyle.text , 5, 18);  
+        // ctx.fillText(dateText , 5, 36);  
         // ctx.fillText(this.series[index].name + ": " + this.series[index].value + this.unit, 5, 40);  
         // ctx.fillText(this.series[index].precent, 5, 60);  
         ctx.restore()
-        if(opts.x + textWidth+10>=this.canvas.width){
+        if(opts.x + this.tooltipsCanvas.canvas.width+13<=this.canvas.width&&opts.y + this.tooltipsCanvas.canvas.height+13<=this.canvas.height){
             this.ctx.drawImage(this.tooltipsCanvas.canvas, 0, 0, this.tooltipsCanvas.canvas.width, this.tooltipsCanvas.canvas.height,   
-                opts.x-this.tooltipsCanvas.canvas.width, opts.y-20, this.tooltipsCanvas.canvas.width, this.tooltipsCanvas.canvas.height);
+                opts.x+13, opts.y+13, this.tooltipsCanvas.canvas.width, this.tooltipsCanvas.canvas.height);
+        }else if(opts.x + this.tooltipsCanvas.canvas.width+10>=this.canvas.width){
+            this.ctx.drawImage(this.tooltipsCanvas.canvas, 0, 0, this.tooltipsCanvas.canvas.width, this.tooltipsCanvas.canvas.height,   
+                opts.x-this.tooltipsCanvas.canvas.width, opts.y+10, this.tooltipsCanvas.canvas.width, this.tooltipsCanvas.canvas.height);
         }else{
             this.ctx.drawImage(this.tooltipsCanvas.canvas, 0, 0, this.tooltipsCanvas.canvas.width, this.tooltipsCanvas.canvas.height,   
-                opts.x+10, opts.y-20, this.tooltipsCanvas.canvas.width, this.tooltipsCanvas.canvas.height);
+                opts.x+13, opts.y-this.tooltipsCanvas.canvas.height, this.tooltipsCanvas.canvas.width, this.tooltipsCanvas.canvas.height);
         }
-        
-        
     }
 
     clearTooltips(){  
         this.ctx.clearRect(0,0,this.w, this.h)
         this.tooltipsCanvas.ctx.clearRect(0, 0, this.tooltipsCanvas.canvas.width, this.tooltipsCanvas.canvas.height)
         this.ctx.drawImage(this.realCanvas.canvas, 0, 0, this.w, this.h, 0, 0, this.w, this.h)  
+    }
+    //合并传进来的option
+    mergeOption(option){
+        const thatOption = {
+            data:option.data,
+            tooltips:option.tooltips
+        }
+        thatOption.data.forEach(item=>{
+            if(!is_valid_date(item.start_time)){
+                throw new Error('请检查开始时间的日期格式')
+            }
+            if(!is_valid_date(item.end_time)){
+                throw new Error('请检查结束时间的日期格式')
+            }
+            if(item.start_time>item.end_time){
+                throw new Error('某项数据的开始日期大于结束日期，请检查！')
+            }
+            if(item.textStyle){
+                if(!item.textStyle.text){
+                    console.error('请检查数据项标题',item)
+                    return
+                }
+            }else{
+                console.error('请检查该数据项',item)
+                return
+            }
+            //设置每个数据项的样式
+            item.backgroundColor = item.backgroundColor || '#00ee00'
+            item.textStyle.color = item.textStyle.color || 'black'
+            item.textStyle.fontSize = item.textStyle.fontSize || '14px'
+            item.textStyle.fontFamily = item.textStyle.fontFamily || 'Arial'
+            item.tooltipText = item.tooltipText || item.textStyle.text + '/n' + item.start_time + '到' + item.end_time
+            //tooltips如果是开启的就设置tooltips的样式
+            if(thatOption.tooltips){
+                if(!item.tooltipStyle){
+                    item.tooltipStyle = {}
+                }
+                item.tooltipStyle.color = item.tooltipStyle.color || 'red'
+                item.tooltipStyle.fontSize = item.tooltipStyle.fontSize || '18px'
+                item.tooltipStyle.backgroundColor = item.tooltipStyle.backgroundColor || 'blue'
+                item.tooltipStyle.fontFamily = item.tooltipStyle.fontFamily || 'Arial'
+            }
+        })
+        this.option = thatOption
     }
 
 }
@@ -359,6 +425,11 @@ let option = {
             textStyle:{
                 text:'11111111111111111111',
                 color:'green'
+            },
+            backgroundColor:'#00ee00',
+            tooltipText:'1111111/n2021-01-01到2022-10-10/n222',
+            tooltipStyle:{
+
             }
         },
         {
@@ -366,7 +437,7 @@ let option = {
             end_time:'2022-10-10',
             textStyle:{
                 text:'数据二',
-                color:'pink'
+                color:'black'
             }
         },
         {
@@ -396,9 +467,7 @@ let option = {
         //     text:'数据六',
         // },
     ],
-    tooltips:{
-        enable:true
-    }
+    tooltips:true
 }
 ganttCanvas.setOption(option)
 
@@ -415,15 +484,26 @@ function computedDays(start,end){
     return maxDays
 }
 //计算字符串占据的宽度
-function getTextWidth(opts) {
+function getTextWidthHeight(opts) {
   const dom = document.createElement('span');
 //   dom.style.display = 'inline-block';
-  dom.style.fontSize = (opts.textStyle.fontSize || 14) + 'px'
-  dom.style.fontFamily = opts.textStyle.fontFamily || 'Arial'
+  dom.style.fontSize = opts.textStyle.fontSize
+  dom.style.fontFamily = opts.textStyle.fontFamily
   dom.textContent = opts.textStyle.text
   document.body.appendChild(dom);
   const textWidth = dom.offsetWidth
   const textHeight = dom.offsetHeight
   document.body.removeChild(dom);
   return {textWidth,textHeight}
+}
+
+function getToolTipsWidth(text,opts){
+    const dom = document.createElement('span');
+    dom.style.fontSize = opts.fontSize
+    dom.style.fontFamily = opts.fontFamily
+    dom.textContent = text
+    document.body.appendChild(dom);
+    const textWidth = dom.offsetWidth
+    document.body.removeChild(dom);
+    return textWidth
 }
